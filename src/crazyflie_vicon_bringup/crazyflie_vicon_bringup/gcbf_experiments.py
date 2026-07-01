@@ -18,7 +18,7 @@ LAND_DURATION = 3.0
 HOVER_TIME = 3.0
 RATE_HZ = 50.0
 LOOKAHEAD_DT = 0.05
-CIRCLE_RADIUS = 0.8
+CIRCLE_RADIUS = 1.0
 
 # Standard placeholder values. TODO: replace/tune from the trained GCBF+
 # model config once the real policy artifact is available.

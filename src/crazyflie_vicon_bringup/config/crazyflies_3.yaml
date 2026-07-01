@@ -4,7 +4,7 @@ robots:
   Minhyuk:
     enabled: true
     uri: radio://0/3/2M/E7E7E7E7E7
-    initial_position: [0.0, 0.0, 0.0]
+    initial_position: [-1.0, 0.0, 0.0]
     type: cf_vicon
   cf5:
     enabled: true
@@ -14,7 +14,7 @@ robots:
   cf7:
     enabled: true
     uri: radio://2/60/2M/E7E7E7E707
-    initial_position: [0.0, 0.0, 0.0]
+    initial_position: [1.0, 0.0, 0.0]
     type: cf_vicon
 
 robot_types:
