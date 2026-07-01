@@ -65,44 +65,153 @@ Update these files as needed:
 Every robot key must exactly match the Vicon rigid-body name. Replace the TODO
 placeholder names and URIs in `crazyflies_8.yaml` before real 8-drone tests.
 
-## Launch
+## Hardware Mode Commands
 
-Single drone:
+Use these commands with real Crazyflies, Crazyradio, and Vicon through
+`motion_capture_tracking`. Open two terminals for each staged test.
+
+### One Crazyflie
+
+Terminal 1:
+
 
 ```bash
+source /opt/ros/humble/setup.bash
+source /home/prachit/gcbf_experiments_ws/install/local_setup.bash
 ros2 launch crazyflie_vicon_bringup bringup_single.launch.py
 ```
 
-Three drones:
+Terminal 2:
 
 ```bash
+source /opt/ros/humble/setup.bash
+source /home/prachit/gcbf_experiments_ws/install/local_setup.bash
+ros2 run crazyflie_vicon_bringup gcbf_experiments single_takeoff
+```
+
+After that succeeds, test one-drone `cmdFullState` tracking:
+
+```bash
+ros2 run crazyflie_vicon_bringup gcbf_experiments single_setpoint
+```
+
+### Three Crazyflies
+
+Terminal 1:
+
+```bash
+source /opt/ros/humble/setup.bash
+source /home/prachit/gcbf_experiments_ws/install/local_setup.bash
 ros2 launch crazyflie_vicon_bringup bringup_3.launch.py
 ```
 
-Eight drones:
+Terminal 2:
 
 ```bash
+source /opt/ros/humble/setup.bash
+source /home/prachit/gcbf_experiments_ws/install/local_setup.bash
+ros2 run crazyflie_vicon_bringup gcbf_experiments triple_takeoff
+```
+
+### Eight Crazyflies
+
+Terminal 1:
+
+```bash
+source /opt/ros/humble/setup.bash
+source /home/prachit/gcbf_experiments_ws/install/local_setup.bash
 ros2 launch crazyflie_vicon_bringup bringup_8.launch.py
 ```
 
-The launch files default to real hardware:
+Terminal 2:
 
 ```bash
-backend:=cflib mocap:=True
+source /opt/ros/humble/setup.bash
+source /home/prachit/gcbf_experiments_ws/install/local_setup.bash
+ros2 run crazyflie_vicon_bringup gcbf_experiments eight_takeoff
 ```
 
-For Crazyswarm2 simulation, switch the backend and disable mocap:
+Then run the full position exchange:
 
 ```bash
-ros2 launch crazyflie_vicon_bringup bringup_single.launch.py backend:=sim mocap:=False
-ros2 launch crazyflie_vicon_bringup bringup_3.launch.py backend:=sim mocap:=False
-ros2 launch crazyflie_vicon_bringup bringup_8.launch.py backend:=sim mocap:=False
+ros2 run crazyflie_vicon_bringup gcbf_experiments gcbf8_position_exchange
 ```
 
 Wait for:
 
 ```text
 All Crazyflies are fully connected!
+```
+
+## Simulation Mode Commands
+
+Use simulation before hardware whenever changing the script or model. Open two
+terminals for each staged test.
+
+### One Crazyflie Simulation
+
+Terminal 1:
+
+```bash
+source /opt/ros/humble/setup.bash
+source /home/prachit/gcbf_experiments_ws/install/local_setup.bash
+ros2 launch crazyflie_vicon_bringup bringup_single.launch.py backend:=sim mocap:=False
+```
+
+Terminal 2:
+
+```bash
+source /opt/ros/humble/setup.bash
+source /home/prachit/gcbf_experiments_ws/install/local_setup.bash
+ros2 run crazyflie_vicon_bringup gcbf_experiments single_takeoff --ros-args -p use_sim_time:=True
+```
+
+One-drone simulated `cmdFullState` tracking:
+
+```bash
+ros2 run crazyflie_vicon_bringup gcbf_experiments single_setpoint --ros-args -p use_sim_time:=True
+```
+
+### Three Crazyflies Simulation
+
+Terminal 1:
+
+```bash
+source /opt/ros/humble/setup.bash
+source /home/prachit/gcbf_experiments_ws/install/local_setup.bash
+ros2 launch crazyflie_vicon_bringup bringup_3.launch.py backend:=sim mocap:=False
+```
+
+Terminal 2:
+
+```bash
+source /opt/ros/humble/setup.bash
+source /home/prachit/gcbf_experiments_ws/install/local_setup.bash
+ros2 run crazyflie_vicon_bringup gcbf_experiments triple_takeoff --ros-args -p use_sim_time:=True
+```
+
+### Eight Crazyflies Simulation
+
+Terminal 1:
+
+```bash
+source /opt/ros/humble/setup.bash
+source /home/prachit/gcbf_experiments_ws/install/local_setup.bash
+ros2 launch crazyflie_vicon_bringup bringup_8.launch.py backend:=sim mocap:=False
+```
+
+Terminal 2:
+
+```bash
+source /opt/ros/humble/setup.bash
+source /home/prachit/gcbf_experiments_ws/install/local_setup.bash
+ros2 run crazyflie_vicon_bringup gcbf_experiments eight_takeoff --ros-args -p use_sim_time:=True
+```
+
+Full simulated position exchange:
+
+```bash
+ros2 run crazyflie_vicon_bringup gcbf_experiments gcbf8_position_exchange --ros-args -p use_sim_time:=True
 ```
 
 ## Verify Vicon
@@ -116,46 +225,6 @@ ros2 topic echo /cf7/pose
 
 For the placeholder drones, replace the topic names with the real Vicon/Crazyflie
 names after updating `crazyflies_8.yaml`.
-
-## Run Experiments
-
-Single takeoff:
-
-```bash
-ros2 run crazyflie_vicon_bringup gcbf_experiments single_takeoff
-```
-
-Three-drone takeoff:
-
-```bash
-ros2 run crazyflie_vicon_bringup gcbf_experiments triple_takeoff
-```
-
-Eight-drone takeoff:
-
-```bash
-ros2 run crazyflie_vicon_bringup gcbf_experiments eight_takeoff
-```
-
-One-drone `cmdFullState` setpoint tracking:
-
-```bash
-ros2 run crazyflie_vicon_bringup gcbf_experiments single_setpoint
-```
-
-Eight-drone GCBF+ position exchange placeholder:
-
-```bash
-ros2 run crazyflie_vicon_bringup gcbf_experiments gcbf8_position_exchange
-```
-
-For simulation runs, pass ROS sim time to the experiment command:
-
-```bash
-ros2 run crazyflie_vicon_bringup gcbf_experiments single_takeoff --ros-args -p use_sim_time:=True
-ros2 run crazyflie_vicon_bringup gcbf_experiments single_setpoint --ros-args -p use_sim_time:=True
-ros2 run crazyflie_vicon_bringup gcbf_experiments gcbf8_position_exchange --ros-args -p use_sim_time:=True
-```
 
 ## Model Replacement
 
