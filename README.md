@@ -59,21 +59,21 @@ ros2 run crazyflie_vicon_bringup gcbf_experiments gcbf8_position_exchange
 Single Crazyflie:
 
 ```bash
-ros2 launch crazyflie_vicon_bringup bringup_single.launch.py backend:=sim mocap:=False
+ros2 launch crazyflie_vicon_bringup bringup_single.launch.py backend:=sim mocap:=False rviz:=True gui:=True
 ros2 run crazyflie_vicon_bringup gcbf_experiments single_takeoff --ros-args -p use_sim_time:=True
 ```
 
 Three Crazyflies:
 
 ```bash
-ros2 launch crazyflie_vicon_bringup bringup_3.launch.py backend:=sim mocap:=False
+ros2 launch crazyflie_vicon_bringup bringup_3.launch.py backend:=sim mocap:=False rviz:=True gui:=True
 ros2 run crazyflie_vicon_bringup gcbf_experiments triple_takeoff --ros-args -p use_sim_time:=True
 ```
 
 Eight Crazyflies:
 
 ```bash
-ros2 launch crazyflie_vicon_bringup bringup_8.launch.py backend:=sim mocap:=False
+ros2 launch crazyflie_vicon_bringup bringup_8.launch.py backend:=sim mocap:=False rviz:=True gui:=True
 ros2 run crazyflie_vicon_bringup gcbf_experiments eight_takeoff --ros-args -p use_sim_time:=True
 ros2 run crazyflie_vicon_bringup gcbf_experiments gcbf8_position_exchange --ros-args -p use_sim_time:=True
 ```

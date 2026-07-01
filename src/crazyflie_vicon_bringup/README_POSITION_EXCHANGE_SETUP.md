@@ -155,7 +155,7 @@ Terminal 1:
 ```bash
 source /opt/ros/humble/setup.bash
 source /home/prachit/gcbf_experiments_ws/install/local_setup.bash
-ros2 launch crazyflie_vicon_bringup bringup_single.launch.py backend:=sim mocap:=False
+ros2 launch crazyflie_vicon_bringup bringup_single.launch.py backend:=sim mocap:=False rviz:=True gui:=True
 ```
 
 Terminal 2:
@@ -179,7 +179,7 @@ Terminal 1:
 ```bash
 source /opt/ros/humble/setup.bash
 source /home/prachit/gcbf_experiments_ws/install/local_setup.bash
-ros2 launch crazyflie_vicon_bringup bringup_3.launch.py backend:=sim mocap:=False
+ros2 launch crazyflie_vicon_bringup bringup_3.launch.py backend:=sim mocap:=False rviz:=True gui:=True
 ```
 
 Terminal 2:
@@ -197,7 +197,7 @@ Terminal 1:
 ```bash
 source /opt/ros/humble/setup.bash
 source /home/prachit/gcbf_experiments_ws/install/local_setup.bash
-ros2 launch crazyflie_vicon_bringup bringup_8.launch.py backend:=sim mocap:=False
+ros2 launch crazyflie_vicon_bringup bringup_8.launch.py backend:=sim mocap:=False rviz:=True gui:=True
 ```
 
 Terminal 2:

@@ -16,14 +16,16 @@ def generate_launch_description():
         [
             DeclareLaunchArgument('backend', default_value='cflib'),
             DeclareLaunchArgument('mocap', default_value='True'),
+            DeclareLaunchArgument('gui', default_value='false'),
+            DeclareLaunchArgument('rviz', default_value='false'),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
                     [os.path.join(crazyflie_share, 'launch'), '/launch.py']
                 ),
                 launch_arguments={
                     'backend': LaunchConfiguration('backend'),
-                    'gui': 'false',
-                    'rviz': 'false',
+                    'gui': LaunchConfiguration('gui'),
+                    'rviz': LaunchConfiguration('rviz'),
                     'teleop': 'false',
                     'mocap': LaunchConfiguration('mocap'),
                     'crazyflies_yaml_file': os.path.join(
