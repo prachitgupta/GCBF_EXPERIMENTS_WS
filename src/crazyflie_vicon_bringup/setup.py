@@ -33,6 +33,7 @@ setup(
     entry_points={
         'console_scripts': [
             'gcbf_experiments = crazyflie_vicon_bringup.gcbf_experiments:main',
+            'pose_debug = crazyflie_vicon_bringup.pose_debug:main',
         ],
     },
 )

@@ -226,6 +226,12 @@ ros2 topic echo /cf7/pose
 For the placeholder drones, replace the topic names with the real Vicon/Crazyflie
 names after updating `crazyflies_8.yaml`.
 
+For a more readable pose stream:
+
+```bash
+ros2 run crazyflie_vicon_bringup pose_debug --ros-args -p topic:=/Minhyuk/pose
+```
+
 ## Model Replacement
 
 The placeholder model path is:
