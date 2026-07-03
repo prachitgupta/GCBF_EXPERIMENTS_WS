@@ -28,7 +28,7 @@ def generate_launch_description():
                     'teleop': 'false',
                     'mocap': LaunchConfiguration('mocap'),
                     'crazyflies_yaml_file': os.path.join(
-                        package_share, 'config', 'crazyflies_radio80_dual.yaml'
+                        package_share, 'config', 'crazyflies_radio70_dual.yaml'
                     ),
                     'motion_capture_yaml_file': os.path.join(
                         package_share, 'config', 'motion_capture.yaml'

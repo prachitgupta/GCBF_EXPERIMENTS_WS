@@ -6,9 +6,11 @@ from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from crazyflie_py import Crazyswarm
+from geometry_msgs.msg import PoseStamped
 import numpy as np
 import rclpy
 from rclpy.utilities import remove_ros_args
+from tf2_msgs.msg import TFMessage
 
 
 HEIGHT = 0.5
@@ -103,6 +105,29 @@ def nominal_accelerations(positions, velocities, goals):
 
 def sorted_crazyflies(swarm):
     return sorted(swarm.allcfs.crazyflies, key=lambda cf: cf.prefix)
+
+
+def attach_sim_pose_feedback(swarm, cfs):
+    if not swarm.allcfs.get_parameter('use_sim_time').value:
+        return
+
+    crazyflies_by_frame = {cf.prefix.lstrip('/'): cf for cf in cfs}
+
+    def tf_callback(msg):
+        for transform in msg.transforms:
+            cf = crazyflies_by_frame.get(transform.child_frame_id.lstrip('/'))
+            if cf is None:
+                continue
+
+            pose = PoseStamped()
+            pose.header = transform.header
+            pose.pose.position.x = transform.transform.translation.x
+            pose.pose.position.y = transform.transform.translation.y
+            pose.pose.position.z = transform.transform.translation.z
+            pose.pose.orientation = transform.transform.rotation
+            cf.poseStamped_topic_callback(pose)
+
+    swarm.allcfs.create_subscription(TFMessage, '/tf', tf_callback, 10)
 
 
 def require_count(cfs, expected):
@@ -230,6 +255,28 @@ def circle_positions(count):
     return positions
 
 
+def ring_exchange_waypoints(starts):
+    waypoints = []
+    for step in range(1, 5):
+        angle = step * np.pi / 4.0
+        rotation = np.array(
+            [
+                [np.cos(angle), -np.sin(angle), 0.0],
+                [np.sin(angle), np.cos(angle), 0.0],
+                [0.0, 0.0, 1.0],
+            ]
+        )
+        waypoints.append(starts @ rotation.T)
+    return waypoints
+
+
+def execute_ring_exchange(cfs, time_helper, starts):
+    for waypoint in ring_exchange_waypoints(starts):
+        for cf, target in zip(cfs, waypoint):
+            cf.goTo(target, 0.0, 2.0)
+        time_helper.sleep(2.5)
+
+
 def gcbf8_position_exchange(swarm, cfs):
     require_count(cfs, 8)
     time_helper = swarm.timeHelper
@@ -246,7 +293,14 @@ def gcbf8_position_exchange(swarm, cfs):
             cf.goTo(start, 0.0, 5.0)
         time_helper.sleep(6.0)
 
-        stream_setpoints(cfs, time_helper, goals, policy, MAX_TRACKING_TIME)
+        if policy.model is None:
+            swarm.allcfs.get_logger().warn(
+                'Using collision-aware ring waypoints because no valid GCBF+ '
+                'policy is available.'
+            )
+            execute_ring_exchange(cfs, time_helper, starts)
+        else:
+            stream_setpoints(cfs, time_helper, goals, policy, MAX_TRACKING_TIME)
     finally:
         notify_setpoints_stop(cfs)
         time_helper.sleep(0.2)
@@ -277,6 +331,7 @@ def main():
     args = parse_args()
     swarm = Crazyswarm()
     cfs = sorted_crazyflies(swarm)
+    attach_sim_pose_feedback(swarm, cfs)
     time_helper = swarm.timeHelper
 
     try:

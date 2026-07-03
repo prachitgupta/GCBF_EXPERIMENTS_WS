@@ -9,7 +9,7 @@ Open separate terminals and paste one block into each terminal. These commands i
 Behavior:
 
 - Requires the safety heartbeat before starting.
-- Takes off `Minhyuk`, then `cf5`, then `cf7`.
+- Takes off `cf8`, then `cf5`, then `cf7`.
 - Lands all three together.
 - If the heartbeat terminal is stopped, all Crazyflies should land in place.
 
@@ -107,13 +107,13 @@ ros2 run jackal_cf_follow safety_guard
 ```bash
 source /home/minhyuk/ros_domain_23.sh
 source /opt/ros/humble/setup.bash
-ros2 topic list | grep -E '/(Minhyuk|cf5|cf7|Jackal|poses)'
+ros2 topic list | grep -E '/(cf8|cf5|cf7|Jackal|poses)'
 ```
 
 Optional individual checks:
 
 ```bash
-ros2 topic echo /Minhyuk/pose
+ros2 topic echo /cf8/pose
 ```
 
 ```bash

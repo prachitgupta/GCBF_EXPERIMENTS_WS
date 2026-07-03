@@ -23,7 +23,7 @@ The most important point is this:
 
 Why:
 
-- your Vicon bridge publishes topics like `/vicon/Minhyuk/Minhyuk` and `/vicon/Minhyuk/Minhyuk/pose`
+- your Vicon bridge publishes topics like `/vicon/cf8/cf8` and `/vicon/cf8/cf8/pose`
 - `crazyswarm2` does **not** directly consume those topics for flight
 - instead, `crazyswarm2` expects the ROS package `motion_capture_tracking` to publish a `NamedPoseArray` stream on the `poses` topic
 - the `crazyflie_server` node subscribes to that `poses` topic and matches incoming pose names against the robot names in `crazyflies.yaml`
@@ -124,8 +124,8 @@ You already had:
 - a working Vicon system
 - a ROS 2 Vicon bridge
 - published topics like:
-  - `/vicon/Minhyuk/Minhyuk`
-  - `/vicon/Minhyuk/Minhyuk/pose`
+  - `/vicon/cf8/cf8`
+  - `/vicon/cf8/cf8/pose`
 
 That means Vicon data was getting into ROS 2.
 
@@ -232,7 +232,7 @@ The main configuration file is:
 
 The robot name was set to:
 
-- `Minhyuk`
+- `cf8`
 
 That was intentional.
 
@@ -246,7 +246,7 @@ At the moment, the config uses:
 
 ```yaml
 robots:
-  Minhyuk:
+  cf8:
 ```
 
 If your Vicon rigid body is renamed later, this file must be updated to the exact same name.
@@ -256,7 +256,7 @@ If your Vicon rigid body is renamed later, this file must be updated to the exac
 The current URI in the file is still a placeholder:
 
 ```yaml
-uri: radio://0/80/2M/E7E7E7E7E7
+uri: radio://0/3/2M/E7E7E7E708
 ```
 
 That must be replaced with the real URI discovered from the radio scan when the Crazyflie is powered on.
@@ -316,7 +316,7 @@ Purpose:
 
 The `robot_prefix` in that launch file is:
 
-- `/Minhyuk`
+- `/cf8`
 
 ## 10. Jackal-following prototype
 
@@ -523,14 +523,14 @@ Example:
 
 ```yaml
 robots:
-  Minhyuk:
+  cf8:
     enabled: true
-    uri: radio://0/80/2M/E7E7E7E7E7
+    uri: radio://0/3/2M/E7E7E7E708
     initial_position: [0.0, 0.0, 0.0]
     type: cf_vicon
 ```
 
-If the Vicon rigid body is named `Minhyuk`, then the robot name must also be `Minhyuk`.
+If the Vicon rigid body is named `cf8`, then the robot name must also be `cf8`.
 
 ### 12.9 Build the workspace
 

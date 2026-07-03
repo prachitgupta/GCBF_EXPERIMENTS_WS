@@ -51,7 +51,7 @@ def main():
         logger.info(f'Starting slot {index} with {cf.prefix}.')
         fly_slot(cf, time_helper, y_offset)
 
-    logger.info('Sequential radio 80 experiment complete.')
+    logger.info('Sequential radio 70 experiment complete.')
 
 
 if __name__ == '__main__':

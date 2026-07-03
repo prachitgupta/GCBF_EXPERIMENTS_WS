@@ -1,17 +1,17 @@
 fileversion: 3
 
 robots:
-  Minhyuk:
+  cf8:
     enabled: true
-    uri: radio://0/3/2M/E7E7E7E7E7
+    uri: radio://0/70/2M/E7E7E7E708
     initial_position: [0.0, 0.0, 0.0]
     type: cf_vicon
   cf5:
     enabled: true
-    uri: radio://0/40/2M/E7E7E7E705
+    uri: radio://3/40/2M/E7E7E7E705
     initial_position: [-1.0, 0.0, 0.0]
     type: cf_vicon
-  cf7:
+  cf6:
     enabled: true
     uri: radio://2/50/2M/E7E7E7E706
     initial_position: [-1.0, 1.0, 0.0]

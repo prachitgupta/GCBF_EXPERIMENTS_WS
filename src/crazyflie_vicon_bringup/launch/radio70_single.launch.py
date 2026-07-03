@@ -30,7 +30,7 @@ def generate_launch_description():
                     'crazyflies_yaml_file': os.path.join(
                         package_share,
                         'config',
-                        'crazyflies_radio80_single.yaml',
+                        'crazyflies_radio70_single.yaml',
                     ),
                     'motion_capture_yaml_file': os.path.join(
                         package_share, 'config', 'motion_capture.yaml'

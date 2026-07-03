@@ -28,7 +28,7 @@ def quat_to_rpy_deg(q):
 class PoseDebug(Node):
     def __init__(self):
         super().__init__('pose_debug')
-        self.declare_parameter('topic', '/Minhyuk/pose')
+        self.declare_parameter('topic', '/cf8/pose')
         topic = self.get_parameter('topic').value
         self.create_subscription(PoseStamped, topic, self.pose_callback, 10)
         self.get_logger().info(f'Listening to {topic}')

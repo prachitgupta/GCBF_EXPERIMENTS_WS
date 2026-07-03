@@ -191,7 +191,7 @@ ros2 run crazyflie_vicon_bringup gcbf_experiments gcbf8_position_exchange --ros-
 
 ```bash
 ros2 topic echo /poses
-ros2 topic echo /Minhyuk/pose
+ros2 topic echo /cf8/pose
 ros2 topic echo /cf5/pose
 ros2 topic echo /cf7/pose
 ```
@@ -202,7 +202,7 @@ after updating `crazyflies_8.yaml`.
 For a more readable pose stream:
 
 ```bash
-ros2 run crazyflie_vicon_bringup pose_debug --ros-args -p topic:=/Minhyuk/pose
+ros2 run crazyflie_vicon_bringup pose_debug --ros-args -p topic:=/cf8/pose
 ```
 
 ## Model Replacement

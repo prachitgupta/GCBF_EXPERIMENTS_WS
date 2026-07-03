@@ -40,7 +40,7 @@ def generate_launch_description():
                 parameters=[
                     {'hover_height': 0.4},
                     {'incoming_twist_topic': '/cmd_vel'},
-                    {'robot_prefix': '/Minhyuk'},
+                    {'robot_prefix': '/cf8'},
                 ],
             ),
         ]

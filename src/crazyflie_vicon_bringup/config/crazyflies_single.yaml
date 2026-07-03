@@ -1,9 +1,9 @@
 fileversion: 3
 
 robots:
-  Minhyuk:
+  cf8:
     enabled: true
-    uri: radio://0/3/2M/E7E7E7E7E7
+    uri: radio://0/3/2M/E7E7E7E708
     initial_position: [0.0, 0.0, 0.0]
     type: cf_vicon
 

@@ -35,7 +35,7 @@ source install/local_setup.bash
 Print position and roll/pitch/yaw for a drone pose topic:
 
 ```bash
-ros2 run crazyflie_vicon_bringup pose_debug --ros-args -p topic:=/Minhyuk/pose
+ros2 run crazyflie_vicon_bringup pose_debug --ros-args -p topic:=/cf8/pose
 ```
 
 ## Hardware Quick Start
