@@ -34,6 +34,8 @@ setup(
         'console_scripts': [
             'gcbf_experiments = crazyflie_vicon_bringup.gcbf_experiments:main',
             'pose_debug = crazyflie_vicon_bringup.pose_debug:main',
+            'radio80_sequential = '
+            'crazyflie_vicon_bringup.radio80_sequential:main',
         ],
     },
 )
