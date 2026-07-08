@@ -205,6 +205,13 @@ For a more readable pose stream:
 ros2 run crazyflie_vicon_bringup pose_debug --ros-args -p topic:=/Minhyuk/pose
 ```
 
+To visualize another Crazyflie pose topic in the terminal, replace the `topic`
+parameter:
+
+```bash
+ros2 run crazyflie_vicon_bringup pose_debug --ros-args -p topic:=/cf5/pose
+```
+
 ## Model Replacement
 
 The placeholder model path is:

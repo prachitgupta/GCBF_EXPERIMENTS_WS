@@ -38,6 +38,12 @@ Print position and roll/pitch/yaw for a drone pose topic:
 ros2 run crazyflie_vicon_bringup pose_debug --ros-args -p topic:=/Minhyuk/pose
 ```
 
+To inspect a different pose topic, replace the `topic` parameter:
+
+```bash
+ros2 run crazyflie_vicon_bringup pose_debug --ros-args -p topic:=/cf5/pose
+```
+
 ## Hardware Quick Start
 
 Single Crazyflie:
