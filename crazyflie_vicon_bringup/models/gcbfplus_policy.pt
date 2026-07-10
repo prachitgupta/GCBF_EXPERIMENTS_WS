@@ -1,0 +1,8 @@
+TODO: replace this placeholder with the trained GCBF+ TorchScript model.
+
+Expected model interface:
+- input shape: [N, 9] for px, py, pz, vx, vy, vz, gx, gy, gz
+- output shape: [N, 3] for ax, ay, az
+
+The current experiment code detects this as an unloadable model and uses the
+nominal fallback controller until a real model is installed.
