@@ -34,12 +34,6 @@ ros2 launch crazyflie_vicon_bringup bringup_single.launch.py
 ros2 launch crazyflie_vicon_bringup bringup_3.launch.py
 ros2 launch crazyflie_vicon_bringup bringup_8.launch.py
 
-ros2 run crazyflie_vicon_bringup gcbf_experiments single_takeoff
-ros2 run crazyflie_vicon_bringup gcbf_experiments single_setpoint
-ros2 run crazyflie_vicon_bringup gcbf_experiments triple_takeoff
-ros2 run crazyflie_vicon_bringup gcbf_experiments eight_takeoff
-ros2 run crazyflie_vicon_bringup gcbf_experiments gcbf8_position_exchange
-
 ros2 run crazyflie_vicon_bringup pose_debug --ros-args -p topic:=/Minhyuk/pose
 ros2 run crazyflie_vicon_bringup pose_debug --ros-args -p topic:=/cf5/pose
 ```

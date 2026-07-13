@@ -1,106 +1,30 @@
-# GCBF+ Crazyflie Position Exchange Experiments
-
-This workspace is set up to reproduce the 8-Crazyflie position exchange
-experiment with a trained GCBF+ policy using Crazyswarm2.
-
-The active experiment package is:
-
-```text
-src/crazyflie_vicon_bringup
-```
-
-The detailed setup and runbook is:
-
-```text
-README_POSITION_EXCHANGE_SETUP.md
-```
-
-Package-local copy:
-
-```text
-src/crazyflie_vicon_bringup/README_POSITION_EXCHANGE_SETUP.md
-```
-
-## Build
+# GCBF+ Crazyswarm2 Sim Commands
 
 ```bash
-source /opt/ros/humble/setup.bash
+cd /home/prachit/gcbf_experiments_ws
+/usr/bin/python3 -m pip install --user -r src/gcbfplus/requirements.txt
+/usr/bin/python3 -m pip install --user -e src/gcbfplus
+```
+
+```bash
 cd /home/prachit/gcbf_experiments_ws
 colcon build --symlink-install
 source install/local_setup.bash
 ```
 
-## Pose Debug
-
-Print position and roll/pitch/yaw for a drone pose topic:
-
 ```bash
-ros2 run crazyflie_vicon_bringup pose_debug --ros-args -p topic:=/Minhyuk/pose
-```
-
-To inspect a different pose topic, replace the `topic` parameter:
-
-```bash
-ros2 run crazyflie_vicon_bringup pose_debug --ros-args -p topic:=/cf5/pose
-```
-
-## Hardware Quick Start
-
-Single Crazyflie:
-
-```bash
-ros2 launch crazyflie_vicon_bringup bringup_single.launch.py
-ros2 run crazyflie_vicon_bringup gcbf_experiments single_takeoff
-```
-
-Three Crazyflies:
-
-```bash
-ros2 launch crazyflie_vicon_bringup bringup_3.launch.py
-ros2 run crazyflie_vicon_bringup gcbf_experiments triple_takeoff
-```
-
-Eight Crazyflies:
-
-```bash
-ros2 launch crazyflie_vicon_bringup bringup_8.launch.py
-ros2 run crazyflie_vicon_bringup gcbf_experiments eight_takeoff
-ros2 run crazyflie_vicon_bringup gcbf_experiments gcbf8_position_exchange
-```
-
-## Simulation Quick Start
-
-Single Crazyflie:
-
-```bash
-ros2 launch crazyflie_vicon_bringup bringup_single.launch.py backend:=sim mocap:=False rviz:=True gui:=True
-ros2 run crazyflie_vicon_bringup gcbf_experiments single_takeoff --ros-args -p use_sim_time:=True
-```
-
-Three Crazyflies:
-
-```bash
-ros2 launch crazyflie_vicon_bringup bringup_3.launch.py backend:=sim mocap:=False rviz:=True gui:=True
-ros2 run crazyflie_vicon_bringup gcbf_experiments triple_takeoff --ros-args -p use_sim_time:=True
-```
-
-Eight Crazyflies:
-
-```bash
+cd /home/prachit/gcbf_experiments_ws
+source install/local_setup.bash
 ros2 launch crazyflie_vicon_bringup bringup_8.launch.py backend:=sim mocap:=False rviz:=True gui:=True
-ros2 run crazyflie_vicon_bringup gcbf_experiments eight_takeoff --ros-args -p use_sim_time:=True
-ros2 run crazyflie_vicon_bringup gcbf_experiments gcbf8_position_exchange --ros-args -p use_sim_time:=True
 ```
 
-## Notes
+```bash
+cd /home/prachit/gcbf_experiments_ws
+source install/local_setup.bash
+/usr/bin/python3 -m gcbfplus.crazyswarm_double_integrator \
+  --output gcbf_crazyswarm_double_integrator.npz
+```
 
-- The hardware path uses Crazyswarm2 with Vicon through
-  `motion_capture_tracking`; it does not use `vicon_bridge`, Jackal,
-  Clearpath, or rendezvous scripts.
-- Robot names in the Crazyflie YAML files must exactly match the Vicon
-  rigid-body names.
-- Replace placeholder URIs in
-  `src/crazyflie_vicon_bringup/config/crazyflies_8.yaml` before hardware
-  8-drone tests.
-- Replace `src/crazyflie_vicon_bringup/models/gcbfplus_policy.pt` with the
-  trained GCBF+ TorchScript model before using the learned controller.
+```bash
+ls -lh /home/prachit/gcbf_experiments_ws/gcbf_crazyswarm_double_integrator.npz
+```
