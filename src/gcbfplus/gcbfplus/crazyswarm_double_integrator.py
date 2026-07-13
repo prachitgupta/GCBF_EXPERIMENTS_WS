@@ -260,14 +260,114 @@ def land_all(cfs, time_helper):
 def save_results(path: Path, results):
     if results["positions"]:
         serializable = {
+            "time": np.asarray(results["time"], dtype=float),
             "positions": np.stack(results["positions"], axis=0),
             "velocities": np.stack(results["velocities"], axis=0),
             "actions": np.stack(results["actions"], axis=0),
             "goals": results["goals"],
+            "robot_names": np.asarray(results["robot_names"]),
             "min_distance": np.asarray(results["min_distance"], dtype=float),
             "cbf": np.stack(results["cbf"], axis=0) if results["cbf"] else np.empty((0, N_AGENTS)),
         }
+        path.parent.mkdir(parents=True, exist_ok=True)
         np.savez(path, **serializable)
+
+
+def plot_pose_errors(results, output_dir: Path, hover_height: float):
+    if not results["positions"]:
+        return
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    time = np.asarray(results["time"], dtype=float)
+    positions = np.stack(results["positions"], axis=0)
+    goals = np.asarray(results["goals"], dtype=float)
+
+    for i, name in enumerate(results["robot_names"]):
+        xy_error = goals[i] - positions[:, i, :2]
+        xy_error_norm = np.linalg.norm(xy_error, axis=1)
+        z_error = hover_height - positions[:, i, 2]
+
+        fig, ax = plt.subplots(figsize=(8, 4.5))
+        ax.plot(time, xy_error[:, 0], label="x error")
+        ax.plot(time, xy_error[:, 1], label="y error")
+        ax.plot(time, xy_error_norm, label="xy norm")
+        ax.plot(time, z_error, label="z error")
+        ax.axhline(0.0, color="k", linewidth=0.8, alpha=0.4)
+        ax.set_xlabel("time [s]")
+        ax.set_ylabel("pose error [m]")
+        ax.set_title(f"{name} pose error")
+        ax.grid(True, alpha=0.3)
+        ax.legend(loc="best")
+        fig.savefig(output_dir / f"{name}_pose_error.png", dpi=300, bbox_inches="tight")
+        plt.close(fig)
+
+
+def save_position_animation(results, path: Path, car_radius: float, stride: int):
+    if not results["positions"]:
+        return
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.animation import FuncAnimation, PillowWriter
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    positions = np.stack(results["positions"], axis=0)
+    goals = np.asarray(results["goals"], dtype=float)
+    robot_names = results["robot_names"]
+    time = np.asarray(results["time"], dtype=float)
+    stride = max(1, int(stride))
+    frames = list(range(0, positions.shape[0], stride))
+    if frames[-1] != positions.shape[0] - 1:
+        frames.append(positions.shape[0] - 1)
+
+    xy = positions[:, :, :2]
+    all_xy = np.concatenate([xy.reshape(-1, 2), goals], axis=0)
+    lower = all_xy.min(axis=0) - 0.3
+    upper = all_xy.max(axis=0) + 0.3
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+    ax.set_aspect("equal", adjustable="box")
+    ax.set_xlim(lower[0], upper[0])
+    ax.set_ylim(lower[1], upper[1])
+    ax.set_xlabel("x [m]")
+    ax.set_ylabel("y [m]")
+    ax.grid(True, alpha=0.3)
+
+    ax.scatter(goals[:, 0], goals[:, 1], marker="x", c="tab:green", s=80, label="goals")
+    agent_scatter = ax.scatter([], [], c="tab:blue", s=120, label="agents")
+    traces = [ax.plot([], [], linewidth=1.5)[0] for _ in range(N_AGENTS)]
+    labels = [ax.text(0.0, 0.0, str(name), ha="center", va="center", fontsize=8) for name in robot_names]
+    time_text = ax.text(0.02, 0.98, "", transform=ax.transAxes, va="top")
+    ax.legend(loc="upper right")
+
+    def update(frame):
+        current_xy = xy[frame]
+        agent_scatter.set_offsets(current_xy)
+        for i, line in enumerate(traces):
+            line.set_data(xy[: frame + 1, i, 0], xy[: frame + 1, i, 1])
+            labels[i].set_position((current_xy[i, 0], current_xy[i, 1] + 2.5 * car_radius))
+        time_text.set_text(f"t = {time[frame]:.2f} s")
+        return [agent_scatter, time_text] + traces + labels
+
+    animation = FuncAnimation(fig, update, frames=frames, interval=50, blit=False)
+    animation.save(path, writer=PillowWriter(fps=20))
+    plt.close(fig)
+
+
+def save_visualizations(results, output: Path, args, car_radius: float):
+    if args.save_error_plots:
+        error_plot_dir = Path(args.error_plot_dir).expanduser().resolve() if args.error_plot_dir else output.parent / "pose_errors"
+        plot_pose_errors(results, error_plot_dir, args.hover_height)
+        print(f"Saved pose error plots: {error_plot_dir}")
+    if args.save_animation:
+        animation_file = Path(args.animation_file).expanduser().resolve() if args.animation_file else output.with_suffix(".gif")
+        save_position_animation(results, animation_file, car_radius, args.animation_stride)
+        print(f"Saved animation: {animation_file}")
 
 
 def run(args):
@@ -299,10 +399,12 @@ def run(args):
     pose_source = PoseSource(swarm.allcfs)
 
     results = {
+        "time": [],
         "positions": [],
         "velocities": [],
         "actions": [],
         "goals": goals_xy,
+        "robot_names": robot_names,
         "min_distance": [],
         "cbf": [],
     }
@@ -348,6 +450,7 @@ def run(args):
                 )
 
             h = np.asarray(cbf_fn(graph)).reshape(N_AGENTS)
+            results["time"].append(now - start_time)
             results["positions"].append(positions.copy())
             results["velocities"].append(velocities_xy.copy())
             results["actions"].append(action.copy())
@@ -374,6 +477,7 @@ def run(args):
         land_all(cfs, time_helper)
         if rclpy.ok():
             rclpy.shutdown()
+        save_visualizations(results, output, args, float(env._params["car_radius"]))
 
     print(f"Saved results: {output}")
 
@@ -392,6 +496,11 @@ def parse_args():
     parser.add_argument("--area-size", type=float, default=4.0)
     parser.add_argument("--seed", type=int, default=2)
     parser.add_argument("--output", default="gcbf_crazyswarm_double_integrator.npz")
+    parser.add_argument("--save-error-plots", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--error-plot-dir", default=None)
+    parser.add_argument("--save-animation", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--animation-file", default=None)
+    parser.add_argument("--animation-stride", type=int, default=5)
     return parser.parse_args()
 
 

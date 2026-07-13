@@ -22,11 +22,17 @@ ros2 launch crazyflie_vicon_bringup bringup_8.launch.py backend:=sim mocap:=Fals
 cd /home/prachit/gcbf_experiments_ws
 source install/local_setup.bash
 /usr/bin/python3 -m gcbfplus.crazyswarm_double_integrator \
-  --output src/gcbfplus/media/results/gcbf_crazyswarm_double_integrator.npz
+  --output src/gcbfplus/media/results/gcbf_crazyswarm_double_integrator.npz \
+  --save-error-plots \
+  --error-plot-dir src/gcbfplus/media/results/pose_errors \
+  --save-animation \
+  --animation-file src/gcbfplus/media/results/gcbf_crazyswarm_double_integrator.gif
 ```
 
 ```bash
 ls -lh /home/prachit/gcbf_experiments_ws/src/gcbfplus/media/results/gcbf_crazyswarm_double_integrator.npz
+ls -lh /home/prachit/gcbf_experiments_ws/src/gcbfplus/media/results/gcbf_crazyswarm_double_integrator.gif
+ls -lh /home/prachit/gcbf_experiments_ws/src/gcbfplus/media/results/pose_errors
 ```
 
 ```bash
