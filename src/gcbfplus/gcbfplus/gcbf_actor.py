@@ -6,7 +6,7 @@ import jax.random as jr
 import numpy as np
 import rclpy
 from crazyflie_interfaces.msg import FullState
-from crazyflie_interfaces.srv import Takeoff
+from crazyflie_interfaces.srv import Land, Takeoff
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray, MultiArrayDimension
@@ -14,9 +14,10 @@ from std_msgs.msg import Float64MultiArray, MultiArrayDimension
 from gcbfplus.crazyswarm_double_integrator import (
     DEFAULT_GOAL_TOLERANCE,
     DEFAULT_HOVER_HEIGHT,
-    DEFAULT_LOOKAHEAD_DT,
     DEFAULT_MAX_RUNTIME,
     DEFAULT_RATE_HZ,
+    LAND_DURATION,
+    LAND_HEIGHT,
     N_AGENTS,
     POSE_TIMEOUT,
     TAKEOFF_DURATION,
@@ -30,6 +31,10 @@ from gcbfplus.crazyswarm_double_integrator import (
 from gcbfplus.gcbf_state_bridge import STATE_WIDTH
 
 
+GOAL_HOLD_SECONDS = 2.0
+DEFAULT_LOOKAHEAD_DT = 0.03
+
+
 class GcbfActor(Node):
     def __init__(self):
         super().__init__("gcbf_actor")
@@ -41,7 +46,7 @@ class GcbfActor(Node):
         self.declare_parameter("hover_height", DEFAULT_HOVER_HEIGHT)
         self.declare_parameter("hover_epsilon", 0.06)
         self.declare_parameter("takeoff_duration", TAKEOFF_DURATION)
-        self.declare_parameter("takeoff_timeout", 30.0)
+        self.declare_parameter("takeoff_timeout", 60.0)
         self.declare_parameter("goal_tolerance", DEFAULT_GOAL_TOLERANCE)
         self.declare_parameter("max_runtime", DEFAULT_MAX_RUNTIME)
         self.declare_parameter("pose_timeout", POSE_TIMEOUT)
@@ -74,6 +79,7 @@ class GcbfActor(Node):
         self.cbf_pub = self.create_publisher(Float64MultiArray, "/gcbf/cbf", 10)
         self.create_subscription(Float64MultiArray, "/gcbf/state", self.state_callback, 10)
         self.takeoff_client = self.create_client(Takeoff, "/all/takeoff")
+        self.land_client = self.create_client(Land, "/all/land")
 
         self.lock = threading.Lock()
         self.latest_state = None
@@ -81,8 +87,11 @@ class GcbfActor(Node):
         self.takeoff_requested = False
         self.takeoff_request_time = None
         self.policy_start_time = None
+        self.goal_reached_time = None
+        self.hold_positions = None
         self.policy_active = False
         self.policy_done = False
+        self.land_requested = False
 
         period = 1.0 / float(self.get_parameter("rate_hz").value)
         self.create_timer(period, self.control_step)
@@ -129,18 +138,40 @@ class GcbfActor(Node):
 
     def control_step(self):
         if self.policy_done:
+            if self.land_requested:
+                return
             state = self.fresh_state()
-            if state is not None:
+            hold_positions = self.hold_positions
+            if hold_positions is None and state is not None:
+                hold_positions = state[:, 0:3].copy()
+                self.hold_positions = hold_positions
+            if hold_positions is not None:
                 hover_height = float(self.get_parameter("hover_height").value)
-                for name, row in zip(self.robot_names, state):
+                for name, position in zip(self.robot_names, hold_positions):
                     msg = FullState()
                     msg.header.stamp = self.get_clock().now().to_msg()
                     msg.header.frame_id = "/world"
-                    msg.pose.position.x = float(row[0])
-                    msg.pose.position.y = float(row[1])
+                    msg.pose.position.x = float(position[0])
+                    msg.pose.position.y = float(position[1])
                     msg.pose.position.z = hover_height
                     msg.pose.orientation.w = 1.0
+                    msg.twist.linear.x = 0.0
+                    msg.twist.linear.y = 0.0
+                    msg.twist.linear.z = 0.0
+                    msg.acc.x = 0.0
+                    msg.acc.y = 0.0
+                    msg.acc.z = 0.0
                     self.command_publishers[name].publish(msg)
+            if self.goal_reached_time is not None and self.now_seconds() - self.goal_reached_time >= GOAL_HOLD_SECONDS:
+                if self.land_client.service_is_ready():
+                    request = Land.Request()
+                    request.group_mask = 0
+                    request.height = LAND_HEIGHT
+                    request.duration.sec = int(LAND_DURATION)
+                    request.duration.nanosec = int((LAND_DURATION - int(LAND_DURATION)) * 1e9)
+                    self.land_client.call_async(request)
+                    self.land_requested = True
+                    self.get_logger().info("SUCCESS: all CFs reached goals, held position, and landing was requested.")
             return
 
         state = self.fresh_state()
@@ -164,6 +195,7 @@ class GcbfActor(Node):
         elapsed = self.now_seconds() - self.policy_start_time
         if elapsed > float(self.get_parameter("max_runtime").value):
             self.get_logger().info("GCBF actor reached max runtime.")
+            self.hold_positions = state[:, 0:3].copy()
             self.policy_done = True
             return
 
@@ -179,6 +211,7 @@ class GcbfActor(Node):
             self.get_logger().error(
                 f"Pairwise distance {min_distance:.3f} below collision boundary {self.collision_distance:.3f}."
             )
+            self.hold_positions = state[:, 0:3].copy()
             self.policy_done = True
             return
 
@@ -187,7 +220,9 @@ class GcbfActor(Node):
 
         goal_errors = np.linalg.norm(goals_xy - positions_xy, axis=1)
         if np.all(goal_errors < float(self.get_parameter("goal_tolerance").value)):
-            self.get_logger().info("All CFs reached position-exchange goals.")
+            self.get_logger().info("All CFs reached position-exchange goals; holding before landing.")
+            self.hold_positions = state[:, 0:3].copy()
+            self.goal_reached_time = self.now_seconds()
             self.policy_done = True
             return
 
