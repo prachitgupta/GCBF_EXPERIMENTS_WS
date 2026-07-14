@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+import os
+from glob import glob
+
 from setuptools import setup, find_packages
 
 
@@ -13,4 +16,16 @@ setup(
     url="https://github.com/MIT-REALM/gcbfplus",
     install_requires=[],
     packages=find_packages(),
+    data_files=[
+        ("share/ament_index/resource_index/packages", ["resource/gcbfplus"]),
+        ("share/gcbfplus", ["package.xml"]),
+        (os.path.join("share", "gcbfplus", "launch"), glob("launch/*.py")),
+    ],
+    entry_points={
+        "console_scripts": [
+            "gcbf_state_bridge = gcbfplus.gcbf_state_bridge:main",
+            "gcbf_actor = gcbfplus.gcbf_actor:main",
+            "gcbf_monitor = gcbfplus.gcbf_monitor:main",
+        ],
+    },
 )
