@@ -1,4 +1,4 @@
-# GCBF+ Crazyswarm2 Sim Commands
+# GCBF+ Crazyswarm2 Commands
 
 ```bash
 cd /home/prachit/gcbf_experiments_ws
@@ -22,33 +22,51 @@ ros2 launch crazyflie_vicon_bringup bringup_8.launch.py backend:=sim mocap:=Fals
 cd /home/prachit/gcbf_experiments_ws
 source install/local_setup.bash
 ros2 launch gcbfplus gcbf_crazyswarm_nodes.launch.py \
+  mode:=sim \
   rate_hz:=50.0 \
-  lookahead_dt:=0.03 \
+  lookahead_dt:=0.05 \
   hover_height:=0.5 \
   hover_epsilon:=0.06 \
   takeoff_timeout:=60.0 \
   goal_tolerance:=0.12 \
   max_runtime:=30.0 \
   area_size:=4.0 \
+  max_action_age:=0.02 \
+  print_latency:=false \
   save_error_plots:=true \
   save_animation:=true
+```
+
+The offboard node subscribes directly to simulator `/tf`, runs the policy from the newest complete eight-agent state at up to 50 Hz, and streams low-level `/cf*/cmd_full_state` commands for takeoff, policy flight, hold, and landing. It does not use the high-level takeoff or land services.
+
+For Vicon hardware, first start the eight-Crazyflie real backend, then use the same robot configuration with `mode:=real`:
+
+```bash
+cd /home/prachit/gcbf_experiments_ws
+source install/local_setup.bash
+ros2 launch crazyflie_vicon_bringup bringup_8.launch.py backend:=cflib mocap:=True rviz:=True gui:=True
 ```
 
 ```bash
 cd /home/prachit/gcbf_experiments_ws
 source install/local_setup.bash
 ros2 launch gcbfplus gcbf_crazyswarm_nodes.launch.py \
-  rate_hz:=30.0 \
-  lookahead_dt:=0.02 \
+  mode:=real \
+  rate_hz:=50.0 \
+  lookahead_dt:=0.05 \
   hover_height:=0.5 \
-  hover_epsilon:=0.08 \
+  hover_epsilon:=0.06 \
   takeoff_timeout:=90.0 \
-  goal_tolerance:=0.18 \
-  max_runtime:=45.0 \
+  goal_tolerance:=0.12 \
+  max_runtime:=30.0 \
   area_size:=4.0 \
-  save_error_plots:=true \
-  save_animation:=true
+  max_action_age:=0.02 \
+  print_latency:=false \
+  save_error_plots:=false \
+  save_animation:=false
 ```
+
+`mode:=real` consumes coherent Vicon `/poses` batches, streams the same `/cf*/cmd_full_state` topics, arms before low-level takeoff, and disarms only after low-level landing is confirmed. Set `print_latency:=true` to print one-second timing summaries for state age, graph construction, policy and CBF inference, safety/lookahead work, command publication, and deadline misses.
 
 ```bash
 cd /home/prachit/gcbf_experiments_ws
