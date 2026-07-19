@@ -19,6 +19,7 @@ from std_msgs.msg import Float64MultiArray, MultiArrayDimension
 from tf2_msgs.msg import TFMessage
 
 from gcbfplus.crazyswarm_double_integrator import (
+    DEFAULT_CAR_RADIUS,
     DEFAULT_GOAL_TOLERANCE,
     DEFAULT_HOVER_HEIGHT,
     DEFAULT_MAX_RUNTIME,
@@ -68,6 +69,7 @@ class GcbfActor(Node):
         self.declare_parameter("pose_timeout", POSE_TIMEOUT)
         self.declare_parameter("max_action_age", 0.02)
         self.declare_parameter("area_size", 4.0)
+        self.declare_parameter("car_radius", DEFAULT_CAR_RADIUS)
         self.declare_parameter("seed", 2)
         self.declare_parameter("print_latency", False)
 
@@ -85,11 +87,15 @@ class GcbfActor(Node):
             int(self.get_parameter("step").value),
             float(self.get_parameter("area_size").value),
             max_runtime,
+            float(self.get_parameter("car_radius").value),
         )
         initial_graph = self.env.reset(jr.PRNGKey(int(self.get_parameter("seed").value)))
         self.obstacle_state = initial_graph.env_states.obstacle
         self.mass = float(self.env._params["m"])
         self.collision_distance = 2.0 * float(self.env._params["car_radius"])
+        state_lower, state_upper = self.env.state_lim()
+        self.velocity_lower = np.asarray(state_lower[2:4], dtype=float)
+        self.velocity_upper = np.asarray(state_upper[2:4], dtype=float)
 
         robot_items = load_crazyflies(Path(self.get_parameter("crazyflies_yaml").value))
         self.robot_names = [name for name, _ in robot_items]
@@ -141,10 +147,12 @@ class GcbfActor(Node):
         self.state_lock = threading.Lock()
         self.pending_snapshot = None
         self.inference_running = False
-        self.last_cycle_start = -np.inf
+        self.last_cycle_source_time = -np.inf
         self.sequence = 0
         self.previous_positions = None
         self.previous_source_time = None
+        self.last_policy_source_time = None
+        self.last_min_distance_log_time = -np.inf
 
         self.phase = "waiting"
         self.phase_start_time = None
@@ -245,17 +253,19 @@ class GcbfActor(Node):
             if self.pending_snapshot is not None:
                 self.latency_counts["replaced"] += 1
             self.pending_snapshot = snapshot
-            now = time.perf_counter()
-            if not self.inference_running and now - self.last_cycle_start >= self.min_period:
-                run_snapshot = self._claim_pending_locked(now)
+            if (
+                not self.inference_running
+                and snapshot.source_time - self.last_cycle_source_time >= self.min_period
+            ):
+                run_snapshot = self._claim_pending_locked()
         if run_snapshot is not None:
             self.process_snapshot(run_snapshot)
 
-    def _claim_pending_locked(self, now):
+    def _claim_pending_locked(self):
         snapshot = self.pending_snapshot
         self.pending_snapshot = None
         self.inference_running = True
-        self.last_cycle_start = now
+        self.last_cycle_source_time = snapshot.source_time
         return snapshot
 
     def process_snapshot(self, snapshot):
@@ -349,6 +359,7 @@ class GcbfActor(Node):
         if np.all(np.abs(snapshot.state[:, 2] - hover_height) <= hover_epsilon):
             self.phase = "policy"
             self.policy_start_time = now
+            self.last_policy_source_time = None
             self.get_logger().info("Hover confirmed; starting GCBF policy.")
         elif now - self.phase_start_time > float(self.get_parameter("takeoff_timeout").value):
             self.get_logger().error("Timed out waiting for low-level takeoff confirmation.")
@@ -364,7 +375,10 @@ class GcbfActor(Node):
 
         state = snapshot.state
         positions_xy = state[:, 0:2]
-        velocities_xy = state[:, 3:5]
+        measured_velocities_xy = state[:, 3:5]
+        velocities_xy = np.clip(
+            measured_velocities_xy, self.velocity_lower, self.velocity_upper
+        )
         goals_xy = state[:, 6:8]
 
         section_start = time.perf_counter()
@@ -390,6 +404,12 @@ class GcbfActor(Node):
 
         section_start = time.perf_counter()
         min_distance = pairwise_min_distance(positions_xy)
+        if snapshot.source_time - self.last_min_distance_log_time >= 1.0:
+            self.get_logger().info(
+                f"Minimum pairwise distance: {min_distance:.3f} m "
+                f"(collision boundary: {self.collision_distance:.3f} m)"
+            )
+            self.last_min_distance_log_time = snapshot.source_time
         if min_distance < self.collision_distance:
             self.get_logger().error(
                 f"Pairwise distance {min_distance:.3f} below collision boundary "
@@ -410,16 +430,29 @@ class GcbfActor(Node):
             return
 
         accel_xy = action / self.mass
-        lookahead_dt = float(self.get_parameter("lookahead_dt").value)
-        velocities = np.zeros((N_AGENTS, 3), dtype=float)
-        velocities[:, 0:2] = velocities_xy + accel_xy * lookahead_dt
-        positions = state[:, 0:3].copy()
-        positions[:, 0:2] = (
-            positions_xy + velocities_xy * lookahead_dt + 0.5 * accel_xy * lookahead_dt**2
+        if self.last_policy_source_time is None:
+            state_dt = self.min_period
+        else:
+            state_dt = snapshot.source_time - self.last_policy_source_time
+        propagation_dt = min(
+            max(state_dt, 1e-4), float(self.get_parameter("lookahead_dt").value)
         )
+        self.last_policy_source_time = snapshot.source_time
+        velocities = np.zeros((N_AGENTS, 3), dtype=float)
+        velocities[:, 0:2] = np.clip(
+            velocities_xy + accel_xy * propagation_dt,
+            self.velocity_lower,
+            self.velocity_upper,
+        )
+        positions = state[:, 0:3].copy()
+        positions[:, 0:2] = positions_xy + velocities_xy * propagation_dt
         positions[:, 2] = float(self.get_parameter("hover_height").value)
         accelerations = np.zeros((N_AGENTS, 3), dtype=float)
-        accelerations[:, 0:2] = accel_xy
+        accelerations[:, 0:2] = np.clip(
+            (velocities[:, 0:2] - measured_velocities_xy) / propagation_dt,
+            -1.0 / self.mass,
+            1.0 / self.mass,
+        )
         self.record_latency("safety_lookahead", time.perf_counter() - section_start)
         self.publish_reference(positions, velocities, accelerations, snapshot)
 

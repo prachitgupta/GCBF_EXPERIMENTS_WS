@@ -5,7 +5,7 @@ The controller consumes the newest complete eight-agent state, runs fused JAX gr
 ## Build
 
 ```bash
-cd /home/prachit/gcbf_experiments_ws
+cd /path/to/gcbf_experiments_ws
 source /opt/ros/humble/setup.bash
 /usr/bin/python3 -m pip install --user -r src/gcbfplus/requirements.txt
 colcon build --packages-select gcbfplus --symlink-install
@@ -23,19 +23,20 @@ The repository requirements use JAX and JAXlib `0.4.18`. Confirm the active back
 Start the headless simulator in terminal 1:
 
 ```bash
-cd /home/prachit/gcbf_experiments_ws
+cd /path/to/gcbf_experiments_ws
 source /opt/ros/humble/setup.bash
 source install/local_setup.bash
-ros2 launch crazyflie_vicon_bringup bringup_8.launch.py backend:=sim mocap:=False rviz:=False gui:=False
+ros2 launch crazyflie_vicon_bringup bringup_8.launch.py backend:=sim mocap:=False rviz:=False gui:=False ros_domain_id:=88
 ```
 
 Start the controller and monitor in terminal 2. Every user-defined launch parameter is included explicitly:
 
 ```bash
-cd /home/prachit/gcbf_experiments_ws
+cd /path/to/gcbf_experiments_ws
 source /opt/ros/humble/setup.bash
 source install/local_setup.bash
 ros2 launch gcbfplus gcbf_crazyswarm_nodes.launch.py \
+  ros_domain_id:=88 \
   mode:=sim \
   rate_hz:=50.0 \
   lookahead_dt:=0.05 \
@@ -45,6 +46,7 @@ ros2 launch gcbfplus gcbf_crazyswarm_nodes.launch.py \
   goal_tolerance:=0.12 \
   max_runtime:=90.0 \
   area_size:=4.0 \
+  car_radius:=0.05 \
   max_action_age:=0.02 \
   print_latency:=true \
   save_error_plots:=false \
@@ -55,22 +57,32 @@ With the CPU JAX backend, the fused graph, policy, and CBF inference measured ap
 
 ## Run on Vicon hardware
 
-Start the real backend in terminal 1:
+The simulation launch automatically uses `crazyflies_8_sim.yaml`, preserving the validated 1.4 m simulation geometry.
+
+Start the real backend in terminal 1. If the Crazyflie firmware Python bindings are not already installed, set `CRAZYFLIE_FIRMWARE_BINDINGS` to their build directory before launching:
 
 ```bash
-cd /home/prachit/gcbf_experiments_ws
+cd /path/to/gcbf_experiments_ws
 source /opt/ros/humble/setup.bash
 source install/local_setup.bash
-ros2 launch crazyflie_vicon_bringup bringup_8.launch.py backend:=cflib mocap:=True rviz:=True gui:=True
+export ROS_DOMAIN_ID=88
+# export CRAZYFLIE_FIRMWARE_BINDINGS=/absolute/path/to/crazyflie-firmware/build
+ros2 launch crazyflie_vicon_bringup bringup_8.launch.py \
+  backend:=cflib \
+  mocap:=True \
+  rviz:=True \
+  gui:=True \
+  ros_domain_id:=88
 ```
 
 After confirming all eight Vicon poses and the flight area are safe, start the same controller in terminal 2:
 
 ```bash
-cd /home/prachit/gcbf_experiments_ws
+cd /path/to/gcbf_experiments_ws
 source /opt/ros/humble/setup.bash
 source install/local_setup.bash
 ros2 launch gcbfplus gcbf_crazyswarm_nodes.launch.py \
+  ros_domain_id:=88 \
   mode:=real \
   rate_hz:=50.0 \
   lookahead_dt:=0.05 \
@@ -80,13 +92,16 @@ ros2 launch gcbfplus gcbf_crazyswarm_nodes.launch.py \
   goal_tolerance:=0.12 \
   max_runtime:=90.0 \
   area_size:=4.0 \
+  car_radius:=0.05 \
   max_action_age:=0.02 \
   print_latency:=true \
   save_error_plots:=false \
   save_animation:=false
 ```
 
-`mode:=sim` subscribes to `/tf` and uses simulation time. `mode:=real` subscribes to coherent `/poses` batches, arms before low-level takeoff, and disarms after low-level landing is confirmed.
+`mode:=sim` subscribes to `/tf`, uses simulation time, and selects `crazyflies_8_sim.yaml`. `mode:=real` subscribes to coherent `/poses` batches, selects James's hardware-tested `crazyflies_8.yaml`, arms before low-level takeoff, and disarms after low-level landing is confirmed. Both launches default to ROS domain 88 and also accept `ros_domain_id:=...` explicitly.
+
+`car_radius` is the policy's radius for one agent; the centre-to-centre collision boundary is `2 * car_radius`. During policy execution, the actor prints the measured minimum pairwise distance and collision boundary once per second using the distance already calculated for its safety check.
 
 ## Observe the ROS streams
 

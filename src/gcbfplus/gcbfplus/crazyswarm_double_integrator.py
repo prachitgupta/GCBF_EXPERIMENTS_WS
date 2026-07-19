@@ -18,6 +18,7 @@ DEFAULT_LOOKAHEAD_DT = 0.05
 DEFAULT_HOVER_HEIGHT = 0.5
 DEFAULT_GOAL_TOLERANCE = 0.12
 DEFAULT_MAX_RUNTIME = 30.0
+DEFAULT_CAR_RADIUS = 0.05
 TAKEOFF_DURATION = 3.0
 LAND_DURATION = 3.0
 LAND_HEIGHT = 0.03
@@ -124,7 +125,15 @@ def load_crazyflies(path: Path):
     return sorted(items, key=angle)
 
 
-def make_algo_from_checkpoint(model_dir: Path, step: int, area_size: float, max_runtime: float):
+def make_algo_from_checkpoint(
+    model_dir: Path,
+    step: int,
+    area_size: float,
+    max_runtime: float,
+    car_radius: float = DEFAULT_CAR_RADIUS,
+):
+    if car_radius <= 0.0:
+        raise ValueError("car_radius must be positive")
     config = load_config(model_dir / "config.yaml")
     env = make_env(
         env_id="DoubleIntegrator",
@@ -134,6 +143,7 @@ def make_algo_from_checkpoint(model_dir: Path, step: int, area_size: float, max_
         max_step=max(1, int(max_runtime / 0.03)),
         max_travel=None,
     )
+    env.params["car_radius"] = car_radius
     algo = make_algo(
         algo=getattr(config, "algo", "gcbf+"),
         env=env,
