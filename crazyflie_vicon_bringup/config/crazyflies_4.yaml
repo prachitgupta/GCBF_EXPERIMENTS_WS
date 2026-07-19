@@ -1,0 +1,54 @@
+fileversion: 3
+
+robots:
+  cf1:
+    enabled: true
+    uri: radio://3/80/2M/E7E7E7E701
+    initial_position: [-0.707, -0.707, 0.08]
+    type: cf_vicon
+  cf2:
+    enabled: true
+    uri: radio://4/10/2M/E7E7E7E702
+    initial_position: [-1.0, 0.0, 0.08]
+    type: cf_vicon
+  cf3:
+    enabled: true
+    uri: radio://5/20/2M/E7E7E7E703
+    initial_position: [-0.707, 0.707, 0.08]
+    type: cf_vicon
+  cf4:
+    enabled: true
+    uri: radio://6/30/2M/E7E7E7E704
+    initial_position: [0.0, 1.0, 0.08]
+    type: cf_vicon
+
+robot_types:
+  cf_vicon:
+    motion_capture:
+      tracking: "vendor"
+    big_quad: false
+    battery:
+      voltage_warning: 3.8
+      voltage_critical: 3.7
+
+all:
+  firmware_logging:
+    enabled: true
+    default_topics:
+      pose:
+        frequency: 10
+      status:
+        frequency: 1
+  firmware_params:
+    commander:
+      enHighLevel: 1
+    stabilizer:
+      estimator: 2
+      controller: 1
+    locSrv:
+      extPosStdDev: 1e-3
+      extQuatStdDev: 5e-2
+  reference_frame: "world"
+  broadcasts:
+    num_repeats: 15
+    delay_between_repeats_ms: 1
