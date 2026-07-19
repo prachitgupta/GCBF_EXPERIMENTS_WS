@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import jax
+import jax.numpy as jnp
 import jax.random as jr
 import numpy as np
 import rclpy
@@ -85,14 +86,10 @@ class GcbfActor(Node):
             float(self.get_parameter("area_size").value),
             max_runtime,
         )
-        self.act_fn = jax.jit(self.algo.act)
-        self.cbf_fn = jax.jit(self.algo.get_cbf)
         initial_graph = self.env.reset(jr.PRNGKey(int(self.get_parameter("seed").value)))
         self.obstacle_state = initial_graph.env_states.obstacle
         self.mass = float(self.env._params["m"])
         self.collision_distance = 2.0 * float(self.env._params["car_radius"])
-        jax.block_until_ready(self.act_fn(initial_graph))
-        jax.block_until_ready(self.cbf_fn(initial_graph))
 
         robot_items = load_crazyflies(Path(self.get_parameter("crazyflies_yaml").value))
         self.robot_names = [name for name, _ in robot_items]
@@ -100,6 +97,22 @@ class GcbfActor(Node):
             raise RuntimeError(f"Expected {N_AGENTS} enabled Crazyflies, found {len(self.robot_names)}")
         starts_xy = np.asarray([position[:2] for _, position in robot_items], dtype=float)
         self.goals_xy = np.roll(starts_xy, shift=N_AGENTS // 2, axis=0)
+        self.goals_jax = jnp.asarray(self.goals_xy, dtype=jnp.float32)
+
+        def infer(positions_xy, velocities_xy, goals_xy, obstacle_state):
+            graph = make_graph(
+                self.env, obstacle_state, positions_xy, velocities_xy, goals_xy
+            )
+            return self.env.clip_action(self.algo.act(graph)), self.algo.get_cbf(graph)
+
+        self.infer_fn = jax.jit(infer)
+        warmup = self.infer_fn(
+            jnp.asarray(starts_xy, dtype=jnp.float32),
+            jnp.zeros((N_AGENTS, 2), dtype=jnp.float32),
+            self.goals_jax,
+            self.obstacle_state,
+        )
+        jax.block_until_ready(warmup)
 
         self.command_publishers = {
             name: self.create_publisher(FullState, f"/{name}/cmd_full_state", 1)
@@ -129,7 +142,6 @@ class GcbfActor(Node):
         self.pending_snapshot = None
         self.inference_running = False
         self.last_cycle_start = -np.inf
-        self.deferred_timer = None
         self.sequence = 0
         self.previous_positions = None
         self.previous_source_time = None
@@ -236,8 +248,6 @@ class GcbfActor(Node):
             now = time.perf_counter()
             if not self.inference_running and now - self.last_cycle_start >= self.min_period:
                 run_snapshot = self._claim_pending_locked(now)
-            elif not self.inference_running:
-                self._schedule_deferred_locked(self.min_period - (now - self.last_cycle_start))
         if run_snapshot is not None:
             self.process_snapshot(run_snapshot)
 
@@ -246,36 +256,7 @@ class GcbfActor(Node):
         self.pending_snapshot = None
         self.inference_running = True
         self.last_cycle_start = now
-        self._clear_deferred_locked()
         return snapshot
-
-    def _clear_deferred_locked(self):
-        if self.deferred_timer is not None:
-            timer = self.deferred_timer
-            self.deferred_timer = None
-            timer.cancel()
-            self.destroy_timer(timer)
-
-    def _schedule_deferred_locked(self, delay):
-        if self.deferred_timer is None:
-            self.deferred_timer = self.create_timer(
-                max(delay, 1e-4), self.deferred_callback,
-                callback_group=self.callback_group,
-            )
-
-    def deferred_callback(self):
-        run_snapshot = None
-        with self.lock:
-            self._clear_deferred_locked()
-            now = time.perf_counter()
-            if self.pending_snapshot is not None and not self.inference_running:
-                remaining = self.min_period - (now - self.last_cycle_start)
-                if remaining <= 0.0:
-                    run_snapshot = self._claim_pending_locked(now)
-                else:
-                    self._schedule_deferred_locked(remaining)
-        if run_snapshot is not None:
-            self.process_snapshot(run_snapshot)
 
     def process_snapshot(self, snapshot):
         cycle_start = time.perf_counter()
@@ -317,10 +298,6 @@ class GcbfActor(Node):
     def finish_cycle(self):
         with self.lock:
             self.inference_running = False
-            now = time.perf_counter()
-            if self.pending_snapshot is not None:
-                remaining = self.min_period - (now - self.last_cycle_start)
-                self._schedule_deferred_locked(max(remaining, 1e-4))
 
     def start_takeoff(self, snapshot):
         if self.mode == "real" and not self.arm_requested:
@@ -391,20 +368,19 @@ class GcbfActor(Node):
         goals_xy = state[:, 6:8]
 
         section_start = time.perf_counter()
-        graph = make_graph(self.env, self.obstacle_state, positions_xy, velocities_xy, goals_xy)
-        self.record_latency("graph", time.perf_counter() - section_start)
+        positions_jax = jnp.asarray(positions_xy, dtype=jnp.float32)
+        velocities_jax = jnp.asarray(velocities_xy, dtype=jnp.float32)
+        jax.block_until_ready((positions_jax, velocities_jax))
+        self.record_latency("input_conversion", time.perf_counter() - section_start)
 
         section_start = time.perf_counter()
-        action_jax = self.env.clip_action(self.act_fn(graph))
-        jax.block_until_ready(action_jax)
+        action_jax, cbf_jax = self.infer_fn(
+            positions_jax, velocities_jax, self.goals_jax, self.obstacle_state
+        )
+        jax.block_until_ready((action_jax, cbf_jax))
         action = np.asarray(action_jax, dtype=float)
-        self.record_latency("policy_inference", time.perf_counter() - section_start)
-
-        section_start = time.perf_counter()
-        cbf_jax = self.cbf_fn(graph)
-        jax.block_until_ready(cbf_jax)
         cbf = np.asarray(cbf_jax, dtype=float).reshape(N_AGENTS)
-        self.record_latency("cbf_inference", time.perf_counter() - section_start)
+        self.record_latency("compiled_inference", time.perf_counter() - section_start)
 
         action_age = self.now_seconds() - snapshot.source_time
         self.record_latency("action_age", action_age)
